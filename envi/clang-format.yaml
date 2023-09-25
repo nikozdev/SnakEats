@@ -1,0 +1,189 @@
+Language: Cpp
+Standard: Latest
+BasedOnStyle: InheritParentConfig
+DisableFormat: false
+ColumnLimit: 80
+IndentWidth:                       2
+PPIndentWidth:                    -1 # for -1 - use IndentWidth
+ContinuationIndentWidth:           2
+ConstructorInitializerIndentWidth: 2
+AccessModifierOffset: -2
+AlignAfterOpenBracket:  BlockIndent
+AlignArrayOfStructures: Left
+AlignEscapedNewlines:   Left
+AlignOperands:          AlignAfterOperator
+BreakBeforeBinaryOperators: All # -+/*= -> \n
+AlignConsecutiveAssignments:  Consecutive
+AlignConsecutiveBitFields:    Consecutive
+AlignConsecutiveDeclarations: Consecutive
+AlignConsecutiveMacros:       Consecutive
+AlignTrailingComments:
+  Kind:           Always
+  OverEmptyLines: 0
+AllowAllArgumentsOnNextLine:               true
+AllowAllParametersOfDeclarationOnNextLine: true
+AllowShortBlocksOnASingleLine: Never # while( expr ) { ... }
+AllowShortEnumsOnASingleLine:  true   # enum eName { a, b };
+AllowShortIfStatementsOnASingleLine: AllIfsAndElse # if ( expr ) { ... }
+AllowShortCaseLabelsOnASingleLine:   true # case a: return b;
+AllowShortLoopsOnASingleLine:        true # for ( auto a : b ) { ... }
+AllowShortFunctionsOnASingleLine: None # int f( int a ) { return a; }
+AllowShortLambdasOnASingleLine:   None # [=](...)->void{...}
+AlwaysBreakTemplateDeclarations:      Yes # Yes, No, Multiline (LongOnes)
+AlwaysBreakAfterDefinitionReturnType: None # int\nfunc(){return 0;}
+AlwaysBreakAfterReturnType:           None # external int\n();
+AlwaysBreakBeforeMultilineStrings:    false
+BinPackArguments:     false # f(a,a) or f(a,\na)
+BinPackParameters:    false # f(a,a) {} or f(a,\na) {}
+BitFieldColonSpacing: Both  # b:n(None)b : n(Both)b :n(Before)b: n(After)
+BreakBeforeBraces: Custom
+BraceWrapping: # break line after these triggers
+  AfterControlStatement: Always # if, for, while ... {}
+  AfterCaseLabel:        true
+  AfterNamespace:        true
+  AfterFunction:         true
+  AfterClass:            true
+  AfterStruct:           true
+  AfterUnion:            true
+  AfterEnum:             true
+  AfterExternBlock:      true # extern "C" { ... }
+  AfterObjCDeclaration:  true
+  BeforeCatch:           true
+  BeforeElse:            true
+  BeforeLambdaBody:      true
+  BeforeWhile:           true # do {} \n while();
+  IndentBraces:          false
+  SplitEmptyFunction:    true # int f()\n{\n}
+  SplitEmptyRecord:      true # class\n{\n}
+  SplitEmptyNamespace:   true # namespace name\n{\n}
+# BracedInitializerIndentWidth: 4 # let it be ContinuationIndentWidth
+BreakAfterAttributes: Always # [[]]; Always/Leave/Never
+BreakArrays: true # [ 1, 2, 3, 4, ] vs [ 1,\n 2,\n 3,\n 4,\n ]
+BreakBeforeConceptDeclarations: Always # template<...>\nConcept c = ...;
+BreakBeforeTernaryOperators: true # expr\n?lhs\n:rhs;
+BreakConstructorInitializers: BeforeComma # ctor()\n:a(1)\n,b(2)\n{}
+BreakInheritanceList: BeforeComma # class\n:a\n,b\n{};
+BreakStringLiterals: false # const char*str =\n"literal";
+CompactNamespaces: false   # each namespace on a new line
+Cpp11BracedListStyle: true # write it like functions
+PointerAlignment:       Right # tInt *pInt;
+DerivePointerAlignment: false # do the most thing the file has with &*
+ReferenceAlignment:     Right
+EmptyLineAfterAccessModifier: Always # public:\n<content>
+EmptyLineBeforeAccessModifier: Always # \npublic:
+ExperimentalAutoDetectBinPacking: false #
+FixNamespaceComments: true # namespace a {} // namespace a
+IncludeBlocks:     Preserve # include <...> grouping by lines
+IncludeCategories: # priority is INT_MAX by defualt, to go into the end
+  - Regex:         '.*'
+    Priority:      1
+    SortPriority:  0
+    CaseSensitive: false
+SortIncludes:      Never
+UseTab:   Always # indent with /t to make TabWidth easily changable
+TabWidth: 2      # '\t'==' '*n
+IndentAccessModifiers:      false
+IndentCaseBlocks:           false
+IndentCaseLabels:           false
+IndentGotoLabels:           false # aligned with the rest of the code
+IndentExternBlock:          NoIndent
+IndentPPDirectives:         None
+IndentWrappedFunctionNames: false # r\N\Tf(){}
+InsertBraces:               true  # if () {...} instead of if () ...
+InsertNewlineAtEOF:         false # no need to \n at the end of each file
+IndentRequiresClause:       true # template<>\N\Trequires a
+RequiresClausePosition:        OwnLine # typename<>\Nrequires\Nstruct{};
+RequiresExpressionIndentation: OuterScope #
+InsertTrailingCommas: Wrapped # {a,}
+IntegerLiteralSeparator: # 0xf0'f0
+  Binary:           4
+  BinaryMinDigits:  4
+  Decimal:          3
+  DecimalMinDigits: 4
+  Hex:              2
+  HexMinDigits:     4
+KeepEmptyLinesAtTheStartOfBlocks: false # if(expr){\n...}
+LambdaBodyIndentation: Signature # call(\n\t[](){})
+LineEnding:      DeriveLF
+MacroBlockBegin: ''
+MacroBlockEnd:   ''
+MaxEmptyLinesToKeep: 1
+NamespaceIndentation: None # None, Inner, All
+PackConstructorInitializers: NextLine
+PenaltyBreakAssignment:               1024
+PenaltyBreakBeforeFirstCallParameter: 1024
+PenaltyBreakComment:                  1024
+PenaltyBreakFirstLessLess:            1024
+PenaltyBreakOpenParenthesis:          1024
+PenaltyBreakString:                   1024
+PenaltyBreakTemplateDeclaration:      1024
+PenaltyExcessCharacter:               1024
+PenaltyIndentedWhitespace:            1024
+PenaltyReturnTypeOnItsOwnLine:        1024
+QualifierAlignment: Custom
+QualifierOrder: [ "inline", "static", "constexpr", "friend", "const", "type" ]
+ReflowComments:   true  # obey ColumnLimit
+RemoveBracesLLVM: false # remove {} for "if", "while", "for" { oneliners }
+RemoveSemicolon:  false # remove ; after }
+SeparateDefinitionBlocks: Leave # struct s1{};\Nstruct s2{};
+ShortNamespaceLines: 0 # how many is short ?
+SortUsingDeclarations: Never # using namespace/type_t = ...;
+SpaceAfterCStyleCast:               false # (int) i
+SpaceAfterLogicalNot:               false # ! bool
+SpaceAfterTemplateKeyword:          false # template <...>
+SpaceAroundPointerQualifiers:       Default # Default for PointerAlignment
+SpaceBeforeAssignmentOperators:     true  # v =
+SpaceBeforeCaseColon:               false # case 1 :
+SpaceBeforeCpp11BracedList:         false # v {}
+SpaceBeforeCtorInitializerColon:    false # cThis() : v1()
+SpaceBeforeInheritanceColon:        false # cThis : public cBase
+SpaceBeforeParens:                  Custom
+SpaceBeforeParensOptions:
+  AfterControlStatements:           false
+  AfterForeachMacros:               false
+  AfterFunctionDefinitionName:      false
+  AfterFunctionDeclarationName:     false
+  AfterIfMacros:                    false
+  AfterOverloadedOperator:          false # v.operator++ ()
+  AfterRequiresInClause:            false # template<>requires ()
+  AfterRequiresInExpression:        false # concept c = requires ()
+  BeforeNonEmptyParentheses:        false
+SpaceBeforeRangeBasedForLoopColon:  false # for (auto a:v)
+SpaceBeforeSquareBrackets:          false # a []
+SpaceInEmptyBlock:                  false # { }
+SpaceInEmptyParentheses:            false # ( )
+SpacesBeforeTrailingComments:       0
+SpacesInAngles:                     Never # < >
+SpacesInCStyleCastParentheses:      false # ( int )i
+SpacesInConditionalStatement:       false # if ( b ) {}
+SpacesInContainerLiterals:          false  # v = [ 1, 2, 3, ]
+SpacesInLineCommentPrefix: # //    4 spaces max
+  Minimum:                          0
+  Maximum:                          0
+SpacesInParentheses:                false # ( 'c' )
+SpacesInSquareBrackets:             false # ( v[ 42 ] )
+StatementMacros:
+  - Q_UNUSED
+  - QT_REQUIRE_VERSION
+AttributeMacros:
+  - __capability
+  - __output
+  - __unused
+StatementAttributeLikeMacros: 
+  - Q_EMIT
+ForEachMacros:
+  - foreach
+  - Q_FOREACH
+  - BOOST_FOREACH
+IfMacros:
+  - KJ_IF_MAYBE
+# NamespaceMacros: []
+WhitespaceSensitiveMacros:
+  - BOOST_PP_STRINGIZE
+  - CF_SWIFT_NAME
+  - NS_SWIFT_NAME
+  - PP_STRINGIZE
+  - STRINGIZE
+TypenameMacros:
+  - STACK_OF
+  - LIST
