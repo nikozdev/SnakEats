@@ -6,7 +6,7 @@ include(ExternalProject)
 
 # proj
 
-set(vProjName "SnakIter")
+set(vProjName "SnakEats")
 set(vProjVnum "0.1")
 set(vProjDesc "Snake-Eater")
 set(vProjPath "${CMAKE_SOURCE_DIR}/..")

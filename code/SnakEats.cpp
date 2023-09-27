@@ -1,13 +1,13 @@
-#ifndef dSnakIter_Cpp
-#define dSnakIter_Cpp
+#ifndef dSnakEats_Cpp
+#define dSnakEats_Cpp
 //headers
-#include "SnakIter.hpp"
+#include "SnakEats.hpp"
 #include "fmt/core.h"
 #include "fmt/format.h"
 #include "fmt/ranges.h"
 #include "fmt/chrono.h"
 //content
-namespace nSnakIter
+namespace nSnakEats
 {
 //typedef
 typedef std::default_random_engine				 tRandCore;
@@ -127,7 +127,7 @@ bool fInit(tCore &vCore)
 		}
 		//window
 		vCore.vWindow.vHand = SDL_CreateWindow(
-			dSnakIter_ProjName,
+			dSnakEats_ProjName,
 			SDL_WINDOWPOS_CENTERED,
 			SDL_WINDOWPOS_CENTERED,
 			vCore.vWindow.vSize.x,
@@ -467,7 +467,7 @@ bool fStop(tCore &vCore)
 	}
 }//fStop
 //testing
-#if defined(dSnakIter_MakeTest)
+#if defined(dSnakEats_MakeTest)
 //-//typedef
 using tTestKey = std::string_view;
 using tTestOut = int;
@@ -483,13 +483,13 @@ static const tTestTab vTestTab = {
 		 return EXIT_SUCCESS;
 	 }},
 };
-#endif//ifd(dSnakIter_MakeTest)
-}//namespace nSnakIter
+#endif//ifd(dSnakEats_MakeTest)
+}//namespace nSnakEats
 //actions
 int main(int vArgC, char **vArgV, char **vEnvi)
 {
-	using namespace nSnakIter;
-#ifdef dSnakIter_MakeTest
+	using namespace nSnakEats;
+#ifdef dSnakEats_MakeTest
 	if(vArgC == 3 && std::string_view(vArgV[1]) == "test")
 	{
 		auto vTestKey = std::string_view(vArgV[2]);
@@ -516,16 +516,16 @@ int main(int vArgC, char **vArgV, char **vEnvi)
 		}
 		return 1;
 	}
-#endif//ifd(dSnakIter_MakeTest)
+#endif//ifd(dSnakEats_MakeTest)
 	{
-		auto vCore = nSnakIter::fMake({
+		auto vCore = nSnakEats::fMake({
 			.vWindow = {.vSize = {.x = 0x200, .y = 0x200}},
 			.vTicker = {.vSecMul = 1, .vSecDiv = 5},
 		});
-		nSnakIter::fInit(vCore);
-		nSnakIter::fWork(vCore);
-		nSnakIter::fQuit(vCore);
+		nSnakEats::fInit(vCore);
+		nSnakEats::fWork(vCore);
+		nSnakEats::fQuit(vCore);
 	}
 	return EXIT_SUCCESS;
 }//main
-#endif//dSnakIter_Cpp
+#endif//dSnakEats_Cpp

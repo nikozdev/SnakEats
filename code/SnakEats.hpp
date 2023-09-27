@@ -1,5 +1,5 @@
-#ifndef dSnakIter_Hpp
-#define dSnakIter_Hpp
+#ifndef dSnakEats_Hpp
+#define dSnakEats_Hpp
 //headers
 #include <cstdlib>
 #include <functional>
@@ -23,7 +23,7 @@
 //-//system
 #include <SDL2/SDL.h>
 //content
-namespace nSnakIter
+namespace nSnakEats
 {
 //typedef
 typedef struct tCore tCore;
@@ -46,5 +46,5 @@ bool fInit(tCore &);
 bool fQuit(tCore &);
 bool fWork(tCore &);
 bool fStop(tCore &);
-}//namespace nSnakIter
-#endif//dSnakIter_Hpp
+}//namespace nSnakEats
+#endif//dSnakEats_Hpp
