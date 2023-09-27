@@ -11,6 +11,8 @@
 #include <array>
 #include <vector>
 #include <unordered_map>
+//-//numbers
+#include <random>
 //-//strings
 #include <string_view>
 #include <sstream>

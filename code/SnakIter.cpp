@@ -10,6 +10,8 @@
 namespace nSnakIter
 {
 //typedef
+typedef std::default_random_engine				 tRandCore;
+typedef std::uniform_int_distribution<int> tRandSint;
 typedef enum eGridTile
 {
 	eGridTile_None,
@@ -27,6 +29,7 @@ typedef struct tCore
 	SDL_Point vGridSize;
 	SDL_Point vTileSize;
 	tTileGrid vTileGrid;
+	SDL_Point vFoodTpos;
 	struct
 	{
 		SDL_Point vMoveCurr;
@@ -53,6 +56,11 @@ typedef struct tCore
 		unsigned vMilWas;
 		unsigned vMilNow;
 	} vTicker;
+	struct
+	{
+		tRandCore vCore;
+		tRandSint vSint;
+	} vRandom;
 	bool vInitFlag;
 	bool vWorkFlag;
 } tCore;
@@ -71,6 +79,7 @@ auto fMake(const tConf &vConf) -> tCore
     .vGridSize = vConf.vGridSize,
     .vTileSize = {vConf.vWindow.vSize.x / vConf.vGridSize.x, vConf.vWindow.vSize.y / vConf.vGridSize.y },
     .vTileGrid = tTileGrid((vConf.vGridSize.y * vConf.vGridSize.x), eGridTile_None),
+    .vFoodTpos = { 0, 0 },
     .vPlayer = {
       .vMoveCurr = { 0, 0 },
       .vMovePrev = { 0, 0 },
@@ -92,6 +101,10 @@ auto fMake(const tConf &vConf) -> tCore
       .vSecDiv = vConf.vTicker.vSecDiv,
       .vMilWas = 0,
       .vMilNow = 0,
+    },
+    .vRandom = {
+      .vCore = tRandCore(),
+      .vSint = tRandSint(1, vConf.vGridSize.x * vConf.vGridSize.y),
     },
 		.vInitFlag = 0,
 		.vWorkFlag = 0,
@@ -293,6 +306,57 @@ inline static bool fHitK(tCore &vCore, int vKey, int vMod, bool vState)
 	}
 	return 0;
 }//fHitK
+inline static bool fTick(tCore &vCore)
+{
+	//player
+	auto &vBodyCurr = vCore.vPlayer.vBodyCurr;
+	auto &vBodyPrev = vCore.vPlayer.vBodyPrev;
+	vBodyPrev				= vBodyCurr;
+	auto &vMoveCurr = vCore.vPlayer.vMoveCurr;
+	auto &vMovePrev = vCore.vPlayer.vMovePrev;
+	vMovePrev				= vMoveCurr;
+	if(vMoveCurr.x || vMoveCurr.y)
+	{
+		auto &vCurrTpos = vBodyCurr.at(0);
+		auto	vNextTpos = SDL_Point{
+			 vCurrTpos.x + vMoveCurr.x,
+			 vCurrTpos.y + vMoveCurr.y,
+		 };
+		auto &vFoodTpos = vCore.vFoodTpos;
+		auto	vTileEnum = fGetTile(vCore, vFoodTpos);
+		while(vTileEnum == eGridTile_Body || vTileEnum == eGridTile_Head)
+		{
+			vFoodTpos.x = vCore.vRandom.vSint(vCore.vRandom.vCore);
+			vFoodTpos.x = vFoodTpos.x % vCore.vGridSize.x;
+			vFoodTpos.y = vCore.vRandom.vSint(vCore.vRandom.vCore);
+			vFoodTpos.y = vFoodTpos.y % vCore.vGridSize.y;
+			vTileEnum		= fGetTile(vCore, vFoodTpos);
+		}
+		fGetTile(vCore, vFoodTpos) = eGridTile_Food;
+		if(vFoodTpos.x == vNextTpos.x && vFoodTpos.x == vNextTpos.y)
+		{
+			vBodyCurr.push_back(vNextTpos);
+			vBodyPrev.push_back(vNextTpos);
+		}
+		else
+		{
+			fGetTile(vCore, vCurrTpos) = eGridTile_None;
+			vCurrTpos									 = vNextTpos;
+			fGetTile(vCore, vCurrTpos) = eGridTile_Head;
+			//body
+			for(auto vIter = 1; vIter < vBodyCurr.size(); vIter++)
+			{
+				auto &vNextTpos						 = vBodyPrev.at(vIter - 1);
+				auto &vCurrTpos						 = vBodyCurr.at(vIter);
+				fGetTile(vCore, vCurrTpos) = eGridTile_None;
+				vCurrTpos									 = vNextTpos;
+				fGetTile(vCore, vCurrTpos) = eGridTile_Body;
+			}
+		}
+	}
+	//final
+	return 1;
+}
 inline static bool fProc(tCore &vCore)
 {
 	SDL_GetWindowSize(
@@ -324,28 +388,7 @@ inline static bool fProc(tCore &vCore)
 		/ (1'000 * vCore.vTicker.vSecMul / vCore.vTicker.vSecDiv);
 	if(vTickerSecWas != vTickerSecNow)
 	{
-		auto &vBodyCurr = vCore.vPlayer.vBodyCurr;
-		auto &vBodyPrev = vCore.vPlayer.vBodyPrev;
-		vBodyPrev				= vBodyCurr;
-		auto &vMoveCurr = vCore.vPlayer.vMoveCurr;
-		auto &vMovePrev = vCore.vPlayer.vMovePrev;
-		vMovePrev				= vMoveCurr;
-		if(vMoveCurr.x || vMoveCurr.y)
-		{
-			auto &vCurrTpos						 = vBodyCurr.at(0);
-			fGetTile(vCore, vCurrTpos) = eGridTile_None;
-			vCurrTpos.x								 = vCurrTpos.x + vMoveCurr.x;
-			vCurrTpos.y								 = vCurrTpos.y + vMoveCurr.y;
-			fGetTile(vCore, vCurrTpos) = eGridTile_Head;
-			for(auto vIter = 1; vIter < vBodyCurr.size(); vIter++)
-			{
-				auto &vNextTpos						 = vBodyPrev.at(vIter - 1);
-				auto &vCurrTpos						 = vBodyCurr.at(vIter);
-				fGetTile(vCore, vCurrTpos) = eGridTile_None;
-				vCurrTpos									 = vNextTpos;
-				fGetTile(vCore, vCurrTpos) = eGridTile_Body;
-			}
-		}
+		fTick(vCore);
 	}
 	return 1;
 }//fProc
@@ -477,7 +520,7 @@ int main(int vArgC, char **vArgV, char **vEnvi)
 	{
 		auto vCore = nSnakIter::fMake({
 			.vWindow = {.vSize = {.x = 0x200, .y = 0x200}},
-			.vTicker = {.vSecMul = 1, .vSecDiv = 2},
+			.vTicker = {.vSecMul = 1, .vSecDiv = 5},
 		});
 		nSnakIter::fInit(vCore);
 		nSnakIter::fWork(vCore);
