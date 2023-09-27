@@ -1,2 +1,2 @@
-# SnakIter
-- Snake-Eater - the game of snake
+# SnakEats
+- Snake Eats - the game of snake
