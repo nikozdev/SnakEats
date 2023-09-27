@@ -11,6 +11,8 @@
 #include <array>
 #include <vector>
 #include <unordered_map>
+//-//numbers
+#include <random>
 //-//strings
 #include <string_view>
 #include <sstream>
@@ -18,8 +20,31 @@
 //-//input output
 #include <iostream>
 #include <fstream>
+//-//system
+#include <SDL2/SDL.h>
 //content
 namespace nSnakIter
 {
+//typedef
+typedef struct tCore tCore;
+typedef struct tConf
+{
+  SDL_Point vGridSize = { 0x20, 0x20 };
+	struct
+	{
+		SDL_Point vSize = {.x = 0x200, .y = 0x200};
+	} vWindow;
+	struct
+	{
+		unsigned vSecMul = 1;
+		unsigned vSecDiv = 1;
+	} vTicker;
+} tConf;
+//actions
+auto fMake(const tConf &) -> tCore;
+bool fInit(tCore &);
+bool fQuit(tCore &);
+bool fWork(tCore &);
+bool fStop(tCore &);
 }//namespace nSnakIter
 #endif//dSnakIter_Hpp

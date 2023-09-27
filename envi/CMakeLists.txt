@@ -73,6 +73,18 @@ FetchContent_MakeAvailable(fmt)
 find_package(fmt 10.0.0 REQUIRED)
 target_link_libraries(${vTlibName} INTERFACE fmt::fmt)
 
+ExternalProject_Add(
+    SDL2
+    GIT_REPOSITORY https://github.com/libsdl-org/SDL.git
+    GIT_TAG        main
+    PREFIX         ${CMAKE_BINARY_DIR}/external/sdl2
+    CMAKE_ARGS     -DCMAKE_INSTALL_PREFIX=${CMAKE_BINARY_DIR}/external/sdl2
+    UPDATE_DISCONNECTED TRUE
+)
+find_package(SDL2 REQUIRED)
+target_include_directories(${vTlibName} INTERFACE ${SDL2_INCLUDE_DIRS})
+target_link_libraries(${vTlibName} INTERFACE ${SDL2_LIBRARIES})
+
 ##exe
 
 set(vTexeName "t${vProjName}Exe")
