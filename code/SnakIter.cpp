@@ -10,29 +10,29 @@
 namespace nSnakIter
 {
 //typedef
-typedef enum eGridCell
+typedef enum eGridTile
 {
-	eGridCell_None,
-	eGridCell_Head,
-	eGridCell_Body,
-	eGridCell_Food,
-	eGridCell_Wall,
-	eGridCell_Last,
-} eGridCell;
-typedef std::vector<eGridCell> tCellGrid;
-typedef struct tBodyCell
-{
-	SDL_Point vPos;
-	SDL_Point vDir;
-} tBodyCell;
-typedef std::vector<tBodyCell> tCellBody;
+	eGridTile_None,
+	eGridTile_Head,
+	eGridTile_Body,
+	eGridTile_Food,
+	eGridTile_Wall,
+	eGridTile_Last,
+} eGridTile;
+typedef std::vector<eGridTile> tTileGrid;
+typedef std::vector<SDL_Point> tBodyList;
+typedef std::vector<SDL_Rect>	 tRectList;
 typedef struct tCore
 {
 	SDL_Point vGridSize;
-	tCellGrid vCellGrid;
+	SDL_Point vTileSize;
+	tTileGrid vTileGrid;
 	struct
 	{
-		tCellBody vBody;
+		SDL_Point vMoveCurr;
+		SDL_Point vMovePrev;
+		tBodyList vBodyCurr;
+		tBodyList vBodyPrev;
 	} vPlayer;
 	struct
 	{
@@ -44,24 +44,38 @@ typedef struct tCore
 		SDL_Renderer *vHand;
 		SDL_Point			vSize;
 		SDL_Color			vTint;
+		tRectList			vRectList;
 	} vDrawer;
 	struct
 	{
 		unsigned vSecMul;
 		unsigned vSecDiv;
+		unsigned vMilWas;
+		unsigned vMilNow;
 	} vTicker;
 	bool vInitFlag;
 	bool vWorkFlag;
 } tCore;
 //actions
+//-//grid
+auto fGetTile(tCore &vCore, SDL_Point vTpos) -> eGridTile &
+{
+	vTpos.x %= vCore.vGridSize.x;
+	vTpos.y %= vCore.vGridSize.y;
+	return vCore.vTileGrid[vTpos.y * vCore.vGridSize.x + vTpos.x];
+}//fGetTile
 //-//system
 auto fMake(const tConf &vConf) -> tCore
 {
 	return tCore{
     .vGridSize = vConf.vGridSize,
-    .vCellGrid = tCellGrid((vConf.vGridSize.y * vConf.vGridSize.x), eGridCell_None),
+    .vTileSize = {vConf.vWindow.vSize.x / vConf.vGridSize.x, vConf.vWindow.vSize.y / vConf.vGridSize.y },
+    .vTileGrid = tTileGrid((vConf.vGridSize.y * vConf.vGridSize.x), eGridTile_None),
     .vPlayer = {
-      .vBody = { tBodyCell{ .vPos = { 0, 0 }, .vDir = { 0, 1 } } },
+      .vMoveCurr = { 0, 0 },
+      .vMovePrev = { 0, 0 },
+      .vBodyCurr = { { vConf.vGridSize.x / 2, vConf.vGridSize.y / 2 } },
+      .vBodyPrev = { { vConf.vGridSize.x / 2, vConf.vGridSize.y / 2 } },
     },
     .vWindow = {
       .vHand = 0,
@@ -71,15 +85,18 @@ auto fMake(const tConf &vConf) -> tCore
       .vHand = 0,
       .vSize = vConf.vWindow.vSize,
       .vTint = { .r = 0x00, .g = 0x00, .b = 0x00, .a = 0xff },
+      .vRectList = tRectList(vConf.vGridSize.x * vConf.vGridSize.y),
     },
     .vTicker = {
       .vSecMul = vConf.vTicker.vSecMul,
       .vSecDiv = vConf.vTicker.vSecDiv,
+      .vMilWas = 0,
+      .vMilNow = 0,
     },
 		.vInitFlag = 0,
 		.vWorkFlag = 0,
 	};
-}
+}//fMake
 bool fInit(tCore &vCore)
 {
 	if(vCore.vInitFlag)
@@ -116,6 +133,34 @@ bool fInit(tCore &vCore)
 			fmt::println(stderr, "Error creating SDL renderer: {}", SDL_GetError());
 			return fQuit(vCore);
 		}
+		//player
+		auto vHeadTpos = SDL_Point{vCore.vGridSize.x / 2, vCore.vGridSize.y / 2};
+		fGetTile(vCore, vHeadTpos) = eGridTile_Head;
+		auto vTailTpos						 = SDL_Point{vHeadTpos.x, vHeadTpos.y - 1};
+		fGetTile(vCore, vTailTpos) = eGridTile_Body;
+		vCore.vPlayer.vMoveCurr		 = {0, 0};
+		vCore.vPlayer.vMovePrev		 = vCore.vPlayer.vMoveCurr;
+		vCore.vPlayer.vBodyCurr		 = {
+			 {vHeadTpos},
+			 {vTailTpos},
+		 };
+		vCore.vPlayer.vBodyPrev = vCore.vPlayer.vBodyCurr;
+		auto vXposOrigin				= 0;
+		auto vYposOrigin				= vCore.vGridSize.y;
+		for(auto vYpos = 0; vYpos < vCore.vGridSize.y; vYpos++)
+		{
+			auto vYkey = vYpos * vCore.vGridSize.x;
+			for(auto vXpos = 0; vXpos < vCore.vGridSize.x; vXpos++)
+			{
+				vCore.vDrawer.vRectList[vYkey + vXpos] = {
+					.x = (vXposOrigin + vXpos) * vCore.vTileSize.x,
+					.y = (vYposOrigin - vYpos) * vCore.vTileSize.y,
+					.w = +vCore.vTileSize.x,
+					.h = -vCore.vTileSize.y,
+				};
+			}
+		}
+		//final
 		return 1;
 	}
 }//fInit
@@ -146,30 +191,105 @@ inline static bool fHitK(tCore &vCore, int vKey, int vMod, bool vState)
 {
 	switch(vKey)
 	{
-	case 'w':
+#if 0
+    // i'll have it here as a reminder
+    // that this kind of check
+    // is a stupid silly nonsense
+    // that would allow our snake
+    // to move into itself
+    // with a double turn
+    // in a single timestep
+	case SDLK_w:
 	{
-		vCore.vPlayer.vBody[0].vDir.x = +0;
-		vCore.vPlayer.vBody[0].vDir.y = +1;
+		auto &vMove = vCore.vPlayer.vMove;
+		if(vMove.y == 0)
+		{
+			vMove.x = +0;
+			vMove.y = +1;
+		}
 	}
 	break;
-	case 'a':
+	case SDLK_a:
 	{
-		vCore.vPlayer.vBody[0].vDir.x = -1;
-		vCore.vPlayer.vBody[0].vDir.y = +0;
+		auto &vMove = vCore.vPlayer.vMove;
+		if(vMove.x == 0)
+		{
+			vMove.x = -1;
+			vMove.y = -0;
+		}
 	}
 	break;
-	case 's':
+	case SDLK_s:
 	{
-		vCore.vPlayer.vBody[0].vDir.x = +0;
-		vCore.vPlayer.vBody[0].vDir.y = -1;
+		auto &vMove = vCore.vPlayer.vMove;
+		if(vMove.y == 0)
+		{
+			vMove.x = -0;
+			vMove.y = -1;
+		}
 	}
 	break;
-	case 'd':
+	case SDLK_d:
 	{
-		vCore.vPlayer.vBody[0].vDir.x = +1;
-		vCore.vPlayer.vBody[0].vDir.y = +0;
+		auto &vMove = vCore.vPlayer.vMove;
+		if(vMove.x == 0)
+		{
+			vMove.x = +1;
+			vMove.y = +0;
+		}
 	}
 	break;
+#else
+	case SDLK_w:
+	{
+		auto &vMoveCurr = vCore.vPlayer.vMoveCurr;
+		auto &vHeadTpos = vCore.vPlayer.vBodyCurr.at(0);
+		auto &vTailTpos = vCore.vPlayer.vBodyCurr.at(1);
+		if((vHeadTpos.y + 1) != vTailTpos.y)
+		{
+			vMoveCurr.x = +0;
+			vMoveCurr.y = +1;
+		}
+	}
+	break;
+	case SDLK_a:
+	{
+		auto &vMoveCurr = vCore.vPlayer.vMoveCurr;
+		auto &vHeadTpos = vCore.vPlayer.vBodyCurr.at(0);
+		auto &vTailTpos = vCore.vPlayer.vBodyCurr.at(1);
+		if((vHeadTpos.x - 1) != vTailTpos.x)
+		{
+			vMoveCurr.x = -1;
+			vMoveCurr.y = -0;
+		}
+	}
+	break;
+	case SDLK_s:
+	{
+		auto &vMoveCurr = vCore.vPlayer.vMoveCurr;
+		auto &vHeadTpos = vCore.vPlayer.vBodyCurr.at(0);
+		auto &vTailTpos = vCore.vPlayer.vBodyCurr.at(1);
+		if((vHeadTpos.y - 1) != vTailTpos.y)
+		{
+			vMoveCurr.x = -0;
+			vMoveCurr.y = -1;
+		}
+	}
+	break;
+	case SDLK_d:
+	{
+		auto &vMoveCurr = vCore.vPlayer.vMoveCurr;
+		auto &vHeadTpos = vCore.vPlayer.vBodyCurr.at(0);
+		auto &vTailTpos = vCore.vPlayer.vBodyCurr.at(1);
+		if((vHeadTpos.x + 1) != vTailTpos.x)
+		{
+			vMoveCurr.x = +1;
+			vMoveCurr.y = +0;
+		}
+	}
+	break;
+#endif
+	default: break;
 	}
 	return 0;
 }//fHitK
@@ -194,6 +314,39 @@ inline static bool fProc(tCore &vCore)
 		default: break;
 		}
 	}
+	vCore.vTicker.vMilWas = vCore.vTicker.vMilNow;
+	vCore.vTicker.vMilNow = SDL_GetTicks();
+	auto vTickerSecWas
+		= vCore.vTicker.vMilWas
+		/ (1'000 * vCore.vTicker.vSecMul / vCore.vTicker.vSecDiv);
+	auto vTickerSecNow
+		= vCore.vTicker.vMilNow
+		/ (1'000 * vCore.vTicker.vSecMul / vCore.vTicker.vSecDiv);
+	if(vTickerSecWas != vTickerSecNow)
+	{
+		auto &vBodyCurr = vCore.vPlayer.vBodyCurr;
+		auto &vBodyPrev = vCore.vPlayer.vBodyPrev;
+		vBodyPrev				= vBodyCurr;
+		auto &vMoveCurr = vCore.vPlayer.vMoveCurr;
+		auto &vMovePrev = vCore.vPlayer.vMovePrev;
+		vMovePrev				= vMoveCurr;
+		if(vMoveCurr.x || vMoveCurr.y)
+		{
+			auto &vCurrTpos						 = vBodyCurr.at(0);
+			fGetTile(vCore, vCurrTpos) = eGridTile_None;
+			vCurrTpos.x								 = vCurrTpos.x + vMoveCurr.x;
+			vCurrTpos.y								 = vCurrTpos.y + vMoveCurr.y;
+			fGetTile(vCore, vCurrTpos) = eGridTile_Head;
+			for(auto vIter = 1; vIter < vBodyCurr.size(); vIter++)
+			{
+				auto &vNextTpos						 = vBodyPrev.at(vIter - 1);
+				auto &vCurrTpos						 = vBodyCurr.at(vIter);
+				fGetTile(vCore, vCurrTpos) = eGridTile_None;
+				vCurrTpos									 = vNextTpos;
+				fGetTile(vCore, vCurrTpos) = eGridTile_Body;
+			}
+		}
+	}
 	return 1;
 }//fProc
 inline static bool fDraw(tCore &vCore)
@@ -209,11 +362,36 @@ inline static bool fDraw(tCore &vCore)
 		vCore.vDrawer.vTint.a
 	);
 	SDL_RenderClear(vCore.vDrawer.vHand);
-	SDL_Rect vRectList[1] = {
-		{.x = 100, .y = 100, .w = 200, .h = 200},
-	};
-	SDL_SetRenderDrawColor(vCore.vDrawer.vHand, 0, 0, 0, 255);
-	SDL_RenderDrawRects(vCore.vDrawer.vHand, vRectList, 1);
+#if 1
+	for(auto vYpos = 0; vYpos < vCore.vGridSize.y; vYpos++)
+	{
+		auto vYkey = vYpos * vCore.vGridSize.x;
+		for(auto vXpos = 0; vXpos < vCore.vGridSize.x; vXpos++)
+		{
+			auto vTile = vCore.vTileGrid[vYkey + vXpos];
+			auto vTint = SDL_Color{.r = 0x00, .g = 0x00, .b = 0x00, .a = 0xff};
+			switch(vTile)
+			{
+			case eGridTile_Head: vTint.g = 0xff; break;
+			case eGridTile_Body: vTint.g = 0x80; break;
+			case eGridTile_Food: vTint.r = 0xff; break;
+			case eGridTile_Wall: vTint.b = 0x80; break;
+			default: break;
+			}
+			SDL_SetRenderDrawColor(
+				vCore.vDrawer.vHand, vTint.r, vTint.g, vTint.b, vTint.a
+			);
+			auto vRectData = &vCore.vDrawer.vRectList[vYkey + vXpos];
+			SDL_RenderFillRect(vCore.vDrawer.vHand, vRectData);
+		}
+	}
+#else
+	SDL_RenderFillRects(
+		vCore.vDrawer.vHand,
+		vCore.vDrawer.vRectList.data(),
+		vCore.vDrawer.vRectList.size()
+	);
+#endif
 	SDL_RenderPresent(vCore.vDrawer.vHand);
 	//final
 	return 1;
@@ -299,7 +477,7 @@ int main(int vArgC, char **vArgV, char **vEnvi)
 	{
 		auto vCore = nSnakIter::fMake({
 			.vWindow = {.vSize = {.x = 0x200, .y = 0x200}},
-			.vTicker = {.vSecMul = 1, .vSecDiv = 1},
+			.vTicker = {.vSecMul = 1, .vSecDiv = 2},
 		});
 		nSnakIter::fInit(vCore);
 		nSnakIter::fWork(vCore);
