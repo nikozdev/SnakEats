@@ -259,7 +259,23 @@ inline static bool fTick(tCore &vCore)
 	auto &vMove = vBody.at(0).vMove;
 	auto &vTpos = vBody.at(0).vTpos;
 	vTpos.x			= (vTpos.x + vMove.x);
+	if(vTpos.x < 0)
+	{
+		vTpos.x = vCore.vGridSize.x - 1;
+	}
+	else if(vTpos.x >= vCore.vGridSize.x)
+	{
+		vTpos.x = 0;
+	}
 	vTpos.y = (vTpos.y + vMove.y);
+	if(vTpos.y < 0)
+	{
+		vTpos.y = vCore.vGridSize.y - 1;
+	}
+	else if(vTpos.y >= vCore.vGridSize.y)
+	{
+		vTpos.y = 0;
+	}
 	for(auto vIter = 1; vIter < vBody.size(); vIter++)
 	{
 		auto &vPrevTile = vCore.vPlayer.vBody.at(vIter - 1);
@@ -358,7 +374,7 @@ inline static bool fDraw(tCore &vCore)
 	{
 		const auto &vBodyTile = vBodyList.at(vIter);
 		const auto &vBodyTpos = vBodyTile.vTpos;
-		SDL_SetRenderDrawColor(vCore.vDrawer.vHand, 0x00, 0x80, 0x00, 0xff);
+    SDL_SetRenderDrawColor(vCore.vDrawer.vHand, 0x00, 0x80, 0x00, 0xff);
 		const auto	vRectIter = vBodyTpos.y * vCore.vGridSize.x + vBodyTpos.x;
 		const auto &vRectData = &vCore.vDrawer.vRectList[vRectIter];
 		SDL_RenderFillRect(vCore.vDrawer.vHand, vRectData);
