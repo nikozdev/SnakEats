@@ -1,5 +1,5 @@
-#ifndef dSnakIter_Hpp
-#define dSnakIter_Hpp
+#ifndef dSnakEats_Hpp
+#define dSnakEats_Hpp
 //headers
 #include <cstdlib>
 #include <functional>
@@ -23,13 +23,14 @@
 //-//system
 #include <SDL2/SDL.h>
 //content
-namespace nSnakIter
+namespace nSnakEats
 {
 //typedef
 typedef struct tCore tCore;
 typedef struct tConf
 {
-  SDL_Point vGridSize = { 0x20, 0x20 };
+	SDL_Point vGridSize = {0x20, 0x20};
+	unsigned	vFoodSize	= 1;
 	struct
 	{
 		SDL_Point vSize = {.x = 0x200, .y = 0x200};
@@ -46,5 +47,5 @@ bool fInit(tCore &);
 bool fQuit(tCore &);
 bool fWork(tCore &);
 bool fStop(tCore &);
-}//namespace nSnakIter
-#endif//dSnakIter_Hpp
+}//namespace nSnakEats
+#endif//dSnakEats_Hpp

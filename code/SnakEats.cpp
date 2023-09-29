@@ -1,41 +1,38 @@
-#ifndef dSnakIter_Cpp
-#define dSnakIter_Cpp
+#ifndef dSnakEats_Cpp
+#define dSnakEats_Cpp
 //headers
-#include "SnakIter.hpp"
+#include "SnakEats.hpp"
 #include "fmt/core.h"
 #include "fmt/format.h"
 #include "fmt/ranges.h"
 #include "fmt/chrono.h"
 //content
-namespace nSnakIter
+namespace nSnakEats
 {
 //typedef
 typedef std::default_random_engine				 tRandCore;
 typedef std::uniform_int_distribution<int> tRandSint;
-typedef enum eGridTile
+typedef struct tFoodTile
 {
-	eGridTile_None,
-	eGridTile_Head,
-	eGridTile_Body,
-	eGridTile_Food,
-	eGridTile_Wall,
-	eGridTile_Last,
-} eGridTile;
-typedef std::vector<eGridTile> tTileGrid;
-typedef std::vector<SDL_Point> tBodyList;
+	SDL_Point vTpos;
+} tFoodTile;
+typedef std::vector<tFoodTile> tFoodList;
+typedef struct tBodyTile
+{
+	SDL_Point vTpos;
+	SDL_Point vMove;
+} tBodyTile;
+typedef std::vector<tBodyTile> tBodyList;
 typedef std::vector<SDL_Rect>	 tRectList;
 typedef struct tCore
 {
 	SDL_Point vGridSize;
 	SDL_Point vTileSize;
-	tTileGrid vTileGrid;
-	SDL_Point vFoodTpos;
+	tFoodList vFoodList;
 	struct
 	{
-		SDL_Point vMoveCurr;
-		SDL_Point vMovePrev;
-		tBodyList vBodyCurr;
-		tBodyList vBodyPrev;
+		tBodyList vBody;
+		bool			vMove;
 	} vPlayer;
 	struct
 	{
@@ -65,26 +62,15 @@ typedef struct tCore
 	bool vWorkFlag;
 } tCore;
 //actions
-//-//grid
-auto fGetTile(tCore &vCore, SDL_Point vTpos) -> eGridTile &
-{
-	vTpos.x %= vCore.vGridSize.x;
-	vTpos.y %= vCore.vGridSize.y;
-	return vCore.vTileGrid[vTpos.y * vCore.vGridSize.x + vTpos.x];
-}//fGetTile
-//-//system
 auto fMake(const tConf &vConf) -> tCore
 {
 	return tCore{
     .vGridSize = vConf.vGridSize,
     .vTileSize = {vConf.vWindow.vSize.x / vConf.vGridSize.x, vConf.vWindow.vSize.y / vConf.vGridSize.y },
-    .vTileGrid = tTileGrid((vConf.vGridSize.y * vConf.vGridSize.x), eGridTile_None),
-    .vFoodTpos = { 0, 0 },
+    .vFoodList = tFoodList(vConf.vFoodSize, tFoodTile{vConf.vGridSize.x / 2, vConf.vGridSize.y / 2}),
     .vPlayer = {
-      .vMoveCurr = { 0, 0 },
-      .vMovePrev = { 0, 0 },
-      .vBodyCurr = { { vConf.vGridSize.x / 2, vConf.vGridSize.y / 2 } },
-      .vBodyPrev = { { vConf.vGridSize.x / 2, vConf.vGridSize.y / 2 } },
+      .vBody = { { vConf.vGridSize.x / 2, vConf.vGridSize.y / 2 } },
+      .vMove = 1,
     },
     .vWindow = {
       .vHand = 0,
@@ -127,7 +113,7 @@ bool fInit(tCore &vCore)
 		}
 		//window
 		vCore.vWindow.vHand = SDL_CreateWindow(
-			dSnakIter_ProjName,
+			dSnakEats_ProjName,
 			SDL_WINDOWPOS_CENTERED,
 			SDL_WINDOWPOS_CENTERED,
 			vCore.vWindow.vSize.x,
@@ -146,20 +132,8 @@ bool fInit(tCore &vCore)
 			fmt::println(stderr, "Error creating SDL renderer: {}", SDL_GetError());
 			return fQuit(vCore);
 		}
-		//player
-		auto vHeadTpos = SDL_Point{vCore.vGridSize.x / 2, vCore.vGridSize.y / 2};
-		fGetTile(vCore, vHeadTpos) = eGridTile_Head;
-		auto vTailTpos						 = SDL_Point{vHeadTpos.x, vHeadTpos.y - 1};
-		fGetTile(vCore, vTailTpos) = eGridTile_Body;
-		vCore.vPlayer.vMoveCurr		 = {0, 0};
-		vCore.vPlayer.vMovePrev		 = vCore.vPlayer.vMoveCurr;
-		vCore.vPlayer.vBodyCurr		 = {
-			 {vHeadTpos},
-			 {vTailTpos},
-		 };
-		vCore.vPlayer.vBodyPrev = vCore.vPlayer.vBodyCurr;
-		auto vXposOrigin				= 0;
-		auto vYposOrigin				= vCore.vGridSize.y;
+		auto vXposOrigin = 0;
+		auto vYposOrigin = vCore.vGridSize.y;
 		for(auto vYpos = 0; vYpos < vCore.vGridSize.y; vYpos++)
 		{
 			auto vYkey = vYpos * vCore.vGridSize.x;
@@ -171,6 +145,28 @@ bool fInit(tCore &vCore)
 					.w = +vCore.vTileSize.x,
 					.h = -vCore.vTileSize.y,
 				};
+			}
+		}
+		//grid
+		auto vGridHalfX = vCore.vGridSize.x / 2;
+		auto vGridHalfY = vCore.vGridSize.y / 2;
+		//player
+		vCore.vPlayer.vBody = {
+			{.vTpos = {vGridHalfX, vGridHalfY + 0}, .vMove = {0, 1}},
+			{.vTpos = {vGridHalfX, vGridHalfY - 1}, .vMove = {0, 1}},
+		};
+		auto &vHeadTpos = vCore.vPlayer.vBody.at(0).vTpos;
+		//food
+		for(auto vIter = 0; vIter < vCore.vFoodList.size(); vIter++)
+		{
+			auto &vFoodIter = vCore.vFoodList.at(vIter);
+			auto &vFoodTpos = vFoodIter.vTpos;
+			while(vFoodTpos.x == vHeadTpos.x && vFoodTpos.y == vHeadTpos.y)
+			{
+				vFoodTpos.x = vCore.vRandom.vSint(vCore.vRandom.vCore);
+				vFoodTpos.x = vFoodTpos.x % vCore.vGridSize.x;
+				vFoodTpos.y = vCore.vRandom.vSint(vCore.vRandom.vCore);
+				vFoodTpos.y = vFoodTpos.y % vCore.vGridSize.y;
 			}
 		}
 		//final
@@ -204,156 +200,122 @@ inline static bool fHitK(tCore &vCore, int vKey, int vMod, bool vState)
 {
 	switch(vKey)
 	{
-#if 0
-    // i'll have it here as a reminder
-    // that this kind of check
-    // is a stupid silly nonsense
-    // that would allow our snake
-    // to move into itself
-    // with a double turn
-    // in a single timestep
 	case SDLK_w:
 	{
-		auto &vMove = vCore.vPlayer.vMove;
-		if(vMove.y == 0)
+		auto &vHeadMove = vCore.vPlayer.vBody.at(0).vMove;
+		auto &vTailMove = vCore.vPlayer.vBody.at(1).vMove;
+		if(vCore.vPlayer.vMove && (not vHeadMove.y || vHeadMove.y != vTailMove.y))
 		{
-			vMove.x = +0;
-			vMove.y = +1;
+			vHeadMove.x					= +0;
+			vHeadMove.y					= +1;
+			vCore.vPlayer.vMove = 0;
 		}
 	}
 	break;
 	case SDLK_a:
 	{
-		auto &vMove = vCore.vPlayer.vMove;
-		if(vMove.x == 0)
+		auto &vHeadMove = vCore.vPlayer.vBody.at(0).vMove;
+		auto &vTailMove = vCore.vPlayer.vBody.at(1).vMove;
+		if(vCore.vPlayer.vMove && (not vHeadMove.x || vHeadMove.x != vTailMove.x))
 		{
-			vMove.x = -1;
-			vMove.y = -0;
+			vHeadMove.x					= -1;
+			vHeadMove.y					= -0;
+			vCore.vPlayer.vMove = 0;
 		}
 	}
 	break;
 	case SDLK_s:
 	{
-		auto &vMove = vCore.vPlayer.vMove;
-		if(vMove.y == 0)
+		auto &vHeadMove = vCore.vPlayer.vBody.at(0).vMove;
+		auto &vTailMove = vCore.vPlayer.vBody.at(1).vMove;
+		if(vCore.vPlayer.vMove && (not vHeadMove.y || vHeadMove.y != vTailMove.y))
 		{
-			vMove.x = -0;
-			vMove.y = -1;
+			vHeadMove.x					= -0;
+			vHeadMove.y					= -1;
+			vCore.vPlayer.vMove = 0;
 		}
 	}
 	break;
 	case SDLK_d:
 	{
-		auto &vMove = vCore.vPlayer.vMove;
-		if(vMove.x == 0)
+		auto &vHeadMove = vCore.vPlayer.vBody.at(0).vMove;
+		auto &vTailMove = vCore.vPlayer.vBody.at(1).vMove;
+		if(vCore.vPlayer.vMove && (not vHeadMove.x || vHeadMove.x != vTailMove.x))
 		{
-			vMove.x = +1;
-			vMove.y = +0;
+			vHeadMove.x					= +1;
+			vHeadMove.y					= +0;
+			vCore.vPlayer.vMove = 0;
 		}
 	}
 	break;
-#else
-	case SDLK_w:
-	{
-		auto &vMoveCurr = vCore.vPlayer.vMoveCurr;
-		auto &vHeadTpos = vCore.vPlayer.vBodyCurr.at(0);
-		auto &vTailTpos = vCore.vPlayer.vBodyCurr.at(1);
-		if((vHeadTpos.y + 1) != vTailTpos.y)
-		{
-			vMoveCurr.x = +0;
-			vMoveCurr.y = +1;
-		}
-	}
-	break;
-	case SDLK_a:
-	{
-		auto &vMoveCurr = vCore.vPlayer.vMoveCurr;
-		auto &vHeadTpos = vCore.vPlayer.vBodyCurr.at(0);
-		auto &vTailTpos = vCore.vPlayer.vBodyCurr.at(1);
-		if((vHeadTpos.x - 1) != vTailTpos.x)
-		{
-			vMoveCurr.x = -1;
-			vMoveCurr.y = -0;
-		}
-	}
-	break;
-	case SDLK_s:
-	{
-		auto &vMoveCurr = vCore.vPlayer.vMoveCurr;
-		auto &vHeadTpos = vCore.vPlayer.vBodyCurr.at(0);
-		auto &vTailTpos = vCore.vPlayer.vBodyCurr.at(1);
-		if((vHeadTpos.y - 1) != vTailTpos.y)
-		{
-			vMoveCurr.x = -0;
-			vMoveCurr.y = -1;
-		}
-	}
-	break;
-	case SDLK_d:
-	{
-		auto &vMoveCurr = vCore.vPlayer.vMoveCurr;
-		auto &vHeadTpos = vCore.vPlayer.vBodyCurr.at(0);
-		auto &vTailTpos = vCore.vPlayer.vBodyCurr.at(1);
-		if((vHeadTpos.x + 1) != vTailTpos.x)
-		{
-			vMoveCurr.x = +1;
-			vMoveCurr.y = +0;
-		}
-	}
-	break;
-#endif
 	default: break;
 	}
 	return 0;
 }//fHitK
 inline static bool fTick(tCore &vCore)
 {
-	//player
-	auto &vBodyCurr = vCore.vPlayer.vBodyCurr;
-	auto &vBodyPrev = vCore.vPlayer.vBodyPrev;
-	vBodyPrev				= vBodyCurr;
-	auto &vMoveCurr = vCore.vPlayer.vMoveCurr;
-	auto &vMovePrev = vCore.vPlayer.vMovePrev;
-	vMovePrev				= vMoveCurr;
-	if(vMoveCurr.x || vMoveCurr.y)
+	//body
+	auto	vBody = tBodyList(vCore.vPlayer.vBody);
+	auto &vMove = vBody.at(0).vMove;
+	auto &vTpos = vBody.at(0).vTpos;
+	vTpos.x			= (vTpos.x + vMove.x);
+	if(vTpos.x < 0)
 	{
-		auto &vCurrTpos = vBodyCurr.at(0);
-		auto	vNextTpos = SDL_Point{
-			 vCurrTpos.x + vMoveCurr.x,
-			 vCurrTpos.y + vMoveCurr.y,
-		 };
-		auto &vFoodTpos = vCore.vFoodTpos;
-		auto	vTileEnum = fGetTile(vCore, vFoodTpos);
-		while(vTileEnum == eGridTile_Body || vTileEnum == eGridTile_Head)
+		vTpos.x = vCore.vGridSize.x - 1;
+	}
+	else if(vTpos.x >= vCore.vGridSize.x)
+	{
+		vTpos.x = 0;
+	}
+	vTpos.y = (vTpos.y + vMove.y);
+	if(vTpos.y < 0)
+	{
+		vTpos.y = vCore.vGridSize.y - 1;
+	}
+	else if(vTpos.y >= vCore.vGridSize.y)
+	{
+		vTpos.y = 0;
+	}
+	for(auto vIter = 1; vIter < vBody.size(); vIter++)
+	{
+		auto &vPrevTile = vCore.vPlayer.vBody.at(vIter - 1);
+		auto &vPrevTpos = vPrevTile.vTpos;
+		auto &vPrevMove = vPrevTile.vMove;
+		auto &vThisTile = vBody.at(vIter + 0);
+		auto &vThisTpos = vThisTile.vTpos;
+		auto &vThisMove = vThisTile.vMove;
+		if(vTpos.x == vThisTpos.x && vTpos.y == vThisTpos.y)
 		{
+			return fStop(vCore);
+		}
+		if(0
+      || (vThisTpos.x == vPrevTpos.x && vThisMove.y != vPrevMove.y)
+      || (vThisTpos.y == vPrevTpos.y && vThisMove.x != vPrevMove.x)
+      )
+		{
+			vThisMove = vPrevMove;
+		}
+		vThisTpos.x = vPrevTpos.x;
+		vThisTpos.y = vPrevTpos.y;
+	}
+	//food
+	for(auto vIter = 0; vIter < vCore.vFoodList.size(); vIter++)
+	{
+		auto &vFoodIter = vCore.vFoodList.at(vIter);
+		auto &vFoodTpos = vFoodIter.vTpos;
+		while(vFoodTpos.x == vTpos.x && vFoodTpos.y == vTpos.y)
+		{
+			auto vBodyTail = vBody.back();
+			vBodyTail.vTpos.x -= vBodyTail.vMove.x;
+			vBodyTail.vTpos.y -= vBodyTail.vMove.y;
+			vBody.push_back(vBodyTail);
 			vFoodTpos.x = vCore.vRandom.vSint(vCore.vRandom.vCore);
 			vFoodTpos.x = vFoodTpos.x % vCore.vGridSize.x;
 			vFoodTpos.y = vCore.vRandom.vSint(vCore.vRandom.vCore);
 			vFoodTpos.y = vFoodTpos.y % vCore.vGridSize.y;
-			vTileEnum		= fGetTile(vCore, vFoodTpos);
-		}
-		fGetTile(vCore, vFoodTpos) = eGridTile_Food;
-		if(vFoodTpos.x == vNextTpos.x && vFoodTpos.x == vNextTpos.y)
-		{
-			vBodyCurr.push_back(vNextTpos);
-			vBodyPrev.push_back(vNextTpos);
-		}
-		else
-		{
-			fGetTile(vCore, vCurrTpos) = eGridTile_None;
-			vCurrTpos									 = vNextTpos;
-			fGetTile(vCore, vCurrTpos) = eGridTile_Head;
-			//body
-			for(auto vIter = 1; vIter < vBodyCurr.size(); vIter++)
-			{
-				auto &vNextTpos						 = vBodyPrev.at(vIter - 1);
-				auto &vCurrTpos						 = vBodyCurr.at(vIter);
-				fGetTile(vCore, vCurrTpos) = eGridTile_None;
-				vCurrTpos									 = vNextTpos;
-				fGetTile(vCore, vCurrTpos) = eGridTile_Body;
-			}
 		}
 	}
+	vCore.vPlayer.vBody = std::move(vBody);
 	//final
 	return 1;
 }
@@ -389,6 +351,7 @@ inline static bool fProc(tCore &vCore)
 	if(vTickerSecWas != vTickerSecNow)
 	{
 		fTick(vCore);
+		vCore.vPlayer.vMove = 1;
 	}
 	return 1;
 }//fProc
@@ -405,38 +368,42 @@ inline static bool fDraw(tCore &vCore)
 		vCore.vDrawer.vTint.a
 	);
 	SDL_RenderClear(vCore.vDrawer.vHand);
-#if 1
-	for(auto vYpos = 0; vYpos < vCore.vGridSize.y; vYpos++)
+	//body
+	const auto &vBodyList = vCore.vPlayer.vBody;
+	for(auto vIter = 1; vIter < vCore.vPlayer.vBody.size(); vIter++)
 	{
-		auto vYkey = vYpos * vCore.vGridSize.x;
-		for(auto vXpos = 0; vXpos < vCore.vGridSize.x; vXpos++)
-		{
-			auto vTile = vCore.vTileGrid[vYkey + vXpos];
-			auto vTint = SDL_Color{.r = 0x00, .g = 0x00, .b = 0x00, .a = 0xff};
-			switch(vTile)
-			{
-			case eGridTile_Head: vTint.g = 0xff; break;
-			case eGridTile_Body: vTint.g = 0x80; break;
-			case eGridTile_Food: vTint.r = 0xff; break;
-			case eGridTile_Wall: vTint.b = 0x80; break;
-			default: break;
-			}
-			SDL_SetRenderDrawColor(
-				vCore.vDrawer.vHand, vTint.r, vTint.g, vTint.b, vTint.a
-			);
-			auto vRectData = &vCore.vDrawer.vRectList[vYkey + vXpos];
-			SDL_RenderFillRect(vCore.vDrawer.vHand, vRectData);
-		}
+		const auto &vBodyTile = vBodyList.at(vIter);
+		const auto &vBodyTpos = vBodyTile.vTpos;
+    if (vIter % 2)
+    {
+      SDL_SetRenderDrawColor(vCore.vDrawer.vHand, 0x00, 0x80, 0x00, 0xff);
+    }
+    else
+    {
+      SDL_SetRenderDrawColor(vCore.vDrawer.vHand, 0x00, 0xa0, 0x00, 0xff);
+    }
+		const auto	vRectIter = vBodyTpos.y * vCore.vGridSize.x + vBodyTpos.x;
+		const auto &vRectData = &vCore.vDrawer.vRectList[vRectIter];
+		SDL_RenderFillRect(vCore.vDrawer.vHand, vRectData);
 	}
-#else
-	SDL_RenderFillRects(
-		vCore.vDrawer.vHand,
-		vCore.vDrawer.vRectList.data(),
-		vCore.vDrawer.vRectList.size()
-	);
-#endif
-	SDL_RenderPresent(vCore.vDrawer.vHand);
+	//head
+	SDL_SetRenderDrawColor(vCore.vDrawer.vHand, 0x00, 0xff, 0x00, 0xff);
+	const auto &vHeadTile = vBodyList.at(0);
+	const auto &vHeadTpos = vHeadTile.vTpos;
+	const auto	vRectIter = vHeadTpos.y * vCore.vGridSize.x + vHeadTpos.x;
+	const auto &vRectData = &vCore.vDrawer.vRectList[vRectIter];
+	SDL_RenderFillRect(vCore.vDrawer.vHand, vRectData);
+	//food
+	for(auto vIter = 0; vIter < vCore.vFoodList.size(); vIter++)
+	{
+		const auto &vFood = vCore.vFoodList.at(vIter);
+		SDL_SetRenderDrawColor(vCore.vDrawer.vHand, 0xff, 0x00, 0x00, 0xff);
+		const auto	vRectIter = vFood.vTpos.y * vCore.vGridSize.x + vFood.vTpos.x;
+		const auto &vRectData = &vCore.vDrawer.vRectList[vRectIter];
+		SDL_RenderFillRect(vCore.vDrawer.vHand, vRectData);
+	}
 	//final
+	SDL_RenderPresent(vCore.vDrawer.vHand);
 	return 1;
 }//fDraw
 inline static bool fStep(tCore &vCore)
@@ -467,7 +434,7 @@ bool fStop(tCore &vCore)
 	}
 }//fStop
 //testing
-#if defined(dSnakIter_MakeTest)
+#if defined(dSnakEats_MakeTest)
 //-//typedef
 using tTestKey = std::string_view;
 using tTestOut = int;
@@ -483,13 +450,13 @@ static const tTestTab vTestTab = {
 		 return EXIT_SUCCESS;
 	 }},
 };
-#endif//ifd(dSnakIter_MakeTest)
-}//namespace nSnakIter
+#endif//ifd(dSnakEats_MakeTest)
+}//namespace nSnakEats
 //actions
 int main(int vArgC, char **vArgV, char **vEnvi)
 {
-	using namespace nSnakIter;
-#ifdef dSnakIter_MakeTest
+	using namespace nSnakEats;
+#ifdef dSnakEats_MakeTest
 	if(vArgC == 3 && std::string_view(vArgV[1]) == "test")
 	{
 		auto vTestKey = std::string_view(vArgV[2]);
@@ -516,16 +483,17 @@ int main(int vArgC, char **vArgV, char **vEnvi)
 		}
 		return 1;
 	}
-#endif//ifd(dSnakIter_MakeTest)
+#endif//ifd(dSnakEats_MakeTest)
 	{
-		auto vCore = nSnakIter::fMake({
+		auto vCore = nSnakEats::fMake({
+      .vGridSize = {.x = 0x08, .y = 0x08},
 			.vWindow = {.vSize = {.x = 0x200, .y = 0x200}},
-			.vTicker = {.vSecMul = 1, .vSecDiv = 5},
+			.vTicker = {.vSecMul = 1, .vSecDiv = 10},
 		});
-		nSnakIter::fInit(vCore);
-		nSnakIter::fWork(vCore);
-		nSnakIter::fQuit(vCore);
+		nSnakEats::fInit(vCore);
+		nSnakEats::fWork(vCore);
+		nSnakEats::fQuit(vCore);
 	}
 	return EXIT_SUCCESS;
 }//main
-#endif//dSnakIter_Cpp
+#endif//dSnakEats_Cpp
