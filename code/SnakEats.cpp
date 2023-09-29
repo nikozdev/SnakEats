@@ -374,7 +374,14 @@ inline static bool fDraw(tCore &vCore)
 	{
 		const auto &vBodyTile = vBodyList.at(vIter);
 		const auto &vBodyTpos = vBodyTile.vTpos;
-    SDL_SetRenderDrawColor(vCore.vDrawer.vHand, 0x00, 0x80, 0x00, 0xff);
+    if (vIter % 2)
+    {
+      SDL_SetRenderDrawColor(vCore.vDrawer.vHand, 0x00, 0x80, 0x00, 0xff);
+    }
+    else
+    {
+      SDL_SetRenderDrawColor(vCore.vDrawer.vHand, 0x00, 0xa0, 0x00, 0xff);
+    }
 		const auto	vRectIter = vBodyTpos.y * vCore.vGridSize.x + vBodyTpos.x;
 		const auto &vRectData = &vCore.vDrawer.vRectList[vRectIter];
 		SDL_RenderFillRect(vCore.vDrawer.vHand, vRectData);
@@ -479,8 +486,9 @@ int main(int vArgC, char **vArgV, char **vEnvi)
 #endif//ifd(dSnakEats_MakeTest)
 	{
 		auto vCore = nSnakEats::fMake({
+      .vGridSize = {.x = 0x08, .y = 0x08},
 			.vWindow = {.vSize = {.x = 0x200, .y = 0x200}},
-			.vTicker = {.vSecMul = 1, .vSecDiv = 5},
+			.vTicker = {.vSecMul = 1, .vSecDiv = 10},
 		});
 		nSnakEats::fInit(vCore);
 		nSnakEats::fWork(vCore);
