@@ -29,7 +29,8 @@ namespace nSnakEats
 typedef struct tCore tCore;
 typedef struct tConf
 {
-  SDL_Point vGridSize = { 0x20, 0x20 };
+	SDL_Point vGridSize = {0x20, 0x20};
+	unsigned	vFoodSize	= 1;
 	struct
 	{
 		SDL_Point vSize = {.x = 0x200, .y = 0x200};
